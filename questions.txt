@@ -1,0 +1,63 @@
+MLOps Lab 2 - Questions and Answers
+=====================================
+
+1. What are the benefits of using classes instead of functions?
+
+- Encapsulation: Related data and methods are grouped together in one place
+- Reusability: Classes can be imported and used in multiple scripts/projects
+- Maintainability: Changes to logic are isolated in one class, not scattered across scripts
+- Testability: Classes can be unit tested independently
+- Extensibility: Easy to create new implementations by inheriting from base classes
+- Polymorphism: Different implementations (LogisticModel, RandomForestModel) can be swapped without changing the calling code
+
+
+2. How does the abstract base class (ABC) help in this architecture?
+
+- Defines a contract: All models must implement train(), predict(), save(), load()
+- Enforces consistency: Python raises an error if a child class doesn't implement required methods
+- Enables polymorphism: Scripts can work with BaseModel type and swap implementations easily
+- Documents the interface: Developers know exactly what methods are required
+- Makes the code more professional and follows design patterns
+
+3. What improvements can still be made to this codebase?
+
+- Add data validation: Check for missing columns, invalid data types before processing
+- Add logging: Use Python's logging module instead of print statements
+- Add unit tests: Test each class independently with pytest
+- Add configuration files: Use YAML/JSON for hyperparameters instead of hardcoding
+- Add cross-validation: Evaluate models on validation set, not just training set
+- Add feature importance analysis: Understand which features matter most
+- Add model versioning: Track different model versions with metadata
+- Add pipeline orchestration: Use tools like Airflow or Prefect for production
+- Add data versioning: Track data changes with DVC
+- Add experiment tracking: Use MLflow or Weights & Biases to track experiments
+
+
+4. Compare the two models : which performed better and why?
+
+Random Forest (98.43%) performed much better than Logistic Regression (82.94%).
+
+Reasons:
+- Random Forest can capture non-linear relationships between features
+- Logistic Regression assumes linear relationships
+- Random Forest is an ensemble of decision trees, reducing variance
+- However, RF's high accuracy on training data (98%) suggests potential overfitting
+- Should evaluate on a separate validation set to get true performance
+
+For production, I would:
+- Use cross-validation to get more reliable accuracy estimates
+- Test on a held-out validation set
+- Consider the trade-off between model complexity and interpretability
+- Logistic Regression is more interpretable (feature coefficients)
+- Random Forest is a "black box" but often more accurate
+
+
+5. How does this class-based architecture support the ML workflow?
+
+- Separation of concerns: Preprocessing, features, and models are independent
+- Easy experimentation: Can quickly swap XGBoost for RandomForest
+- Pipeline automation: run_pipeline.sh demonstrates end-to-end automation
+- Team collaboration: Different team members can work on different classes
+- Version control: Classes are easier to track changes in Git
+- Deployment ready: Classes can be packaged and deployed as a library
+- Reproducibility: All logic is in code, not notebooks
