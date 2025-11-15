@@ -15,8 +15,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from mlops_2025.models import LogisticModel
-
+from mlops_2025.models import LogisticModel, RandomForestModel
 
 def main(model_path: str, features_path: str, output_path: str, 
          model_type: str = "logistic", id_column: str | None = None):
@@ -41,9 +40,12 @@ def main(model_path: str, features_path: str, output_path: str,
         raise FileNotFoundError(f"Features file not found: {features_path}")
 
     # Load model
+    # Load model
     print(f"Loading model from: {model_path}")
     if model_type == "logistic":
         model = LogisticModel()
+    elif model_type == "rf":
+        model = RandomForestModel()
     else:
         raise NotImplementedError(f"Model type '{model_type}' not yet implemented")
     
@@ -79,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--input", type=str, required=True, help="Path to CSV with features")
     parser.add_argument("--output", type=str, required=True, help="Path to save predictions CSV")
     parser.add_argument("--model-type", default="logistic", 
-                        choices=["logistic"], help="Type of model")
+                        choices=["logistic", "rf"], help="Type of model")
     parser.add_argument("--id-column", type=str, required=False, 
                         help="Optional ID column to include in output")
     

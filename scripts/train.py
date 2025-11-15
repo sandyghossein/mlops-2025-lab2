@@ -15,8 +15,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from mlops_2025.models import LogisticModel
-
+from mlops_2025.models import LogisticModel, RandomForestModel
 
 def main(input_csv: str, output_model: str, model_type: str = "logistic"):
     """
@@ -42,8 +41,11 @@ def main(input_csv: str, output_model: str, model_type: str = "logistic"):
     print(f"Target distribution: {y.value_counts().to_dict()}")
 
     # Initialize model based on type
+   # Initialize model based on type
     if model_type == "logistic":
         model = LogisticModel(max_iter=500)
+    elif model_type == "rf":
+        model = RandomForestModel(n_estimators=100, random_state=42)
     else:
         raise NotImplementedError(f"Model type '{model_type}' not yet implemented")
 
@@ -60,7 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("--input", required=True, help="Path to features CSV")
     parser.add_argument("--output", required=True, help="Path to save trained model")
     parser.add_argument("--model-type", default="logistic", 
-                        choices=["logistic"], help="Type of model")
+                        choices=["logistic", "rf"], help="Type of model")
     
     args = parser.parse_args()
     main(args.input, args.output, args.model_type)
