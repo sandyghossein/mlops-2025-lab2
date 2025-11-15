@@ -1,63 +1,85 @@
+"""
+Evaluation script with CLI.
+
+Usage:
+    python scripts/evaluate.py --model models/model.pkl \
+                               --input data/features/train.csv \
+                               --metrics_output results/metrics.json
+"""
+
 import argparse
 import json
-import pickle
-from pathlib import Path
-
 import pandas as pd
-from sklearn.metrics import accuracy_score
+import sys
+from pathlib import Path
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+
+from mlops_2025.models import LogisticModel
 
 
-def load_model(model_path: str):
-    with open(model_path, "rb") as f:
-        model = pickle.load(f)
-    return model
-
-
-def load_data(csv_path: str):
-    df = pd.read_csv(csv_path)
-    return df
-
-
-def compute_metrics(model, X, y):
-    preds = model.predict(X)
-    acc = accuracy_score(y, preds)
-    return {"accuracy": float(acc)}
-
-
-def main(model_path: str, data_path: str, metrics_output: str | None):
+def main(model_path: str, data_path: str, metrics_output: str | None, model_type: str = "logistic"):
+    """
+    Main evaluation function.
+    
+    Args:
+        model_path: Path to saved model
+        data_path: Path to evaluation data
+        metrics_output: Path to save metrics JSON
+        model_type: Type of model
+    """
     print(f"Loading model from: {model_path}")
-    model = load_model(model_path)
+    
+    # Load model based on type
+    if model_type == "logistic":
+        model = LogisticModel()
+    else:
+        raise NotImplementedError(f"Model type '{model_type}' not yet implemented")
+    
+    model.load(model_path)
 
     print(f"Loading evaluation data from: {data_path}")
-    df = load_data(data_path)
+    df = pd.read_csv(data_path)
 
     if "Survived" not in df.columns:
-        raise ValueError("Evaluation CSV must contain a 'Survived' column as the target.")
+        raise ValueError("Evaluation CSV must contain 'Survived' column")
 
     X = df.drop(columns=["Survived"])
     y = df["Survived"]
 
     print("Computing metrics...")
-    metrics = compute_metrics(model, X, y)
+    preds = model.predict(X)
+    accuracy = accuracy_score(y, preds)
+    
+    metrics = {"accuracy": float(accuracy)}
 
-    print("Metrics:")
-    for k, v in metrics.items():
-        print(f"  {k}: {v}")
+    print("\n" + "="*50)
+    print(f"ACCURACY: {accuracy:.4f}")
+    print("="*50 + "\n")
+    
+    print("Classification Report:")
+    print(classification_report(y, preds, target_names=['Not Survived', 'Survived']))
+    
+    print("\nConfusion Matrix:")
+    print(confusion_matrix(y, preds))
 
     if metrics_output:
         out_path = Path(metrics_output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(metrics, f, indent=2)
-        print(f"Saved metrics to: {metrics_output}")
+        print(f"\n✓ Metrics saved to: {metrics_output}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate a trained model on a labeled CSV")
-    parser.add_argument("--model", required=True, help="Path to saved model (pickle)")
-    parser.add_argument("--input", required=True, help="Path to evaluation CSV with 'Survived' column")
-    parser.add_argument("--metrics_output", required=False, help="Optional path to save metrics as JSON")
+    parser = argparse.ArgumentParser(description="Evaluate a trained model")
+    parser.add_argument("--model", required=True, help="Path to saved model")
+    parser.add_argument("--input", required=True, help="Path to evaluation CSV")
+    parser.add_argument("--metrics_output", required=False, help="Path to save metrics JSON")
+    parser.add_argument("--model-type", default="logistic", 
+                        choices=["logistic"], help="Type of model")
 
     args = parser.parse_args()
-
-    main(args.model, args.input, args.metrics_output)
+    main(args.model, args.input, args.metrics_output, args.model_type)

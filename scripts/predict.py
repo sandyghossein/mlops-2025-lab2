@@ -1,89 +1,87 @@
-#!/usr/bin/env python3
+"""
+Prediction script with CLI.
+
+Usage:
+    python scripts/predict.py --model models/model.pkl \
+                              --input data/features/test.csv \
+                              --output results/predictions.csv
+"""
+
 import argparse
-import pickle
-from pathlib import Path
 import pandas as pd
 import sys
+from pathlib import Path
 
-# -------------------------------
-# Load Model (support dict payload or raw model)
-# -------------------------------
-def load_model(model_path: Path):
-    with open(model_path, "rb") as f:
-        payload = pickle.load(f)
-    # payload could be {"model": model_obj, "feature_columns": [...]}
-    if isinstance(payload, dict) and "model" in payload:
-        model = payload["model"]
-        feature_columns = payload.get("feature_columns", None)
-        print(f"✅ Model payload loaded from: {model_path} (contains model + feature metadata)")
-    else:
-        model = payload
-        feature_columns = None
-        print(f"✅ Model loaded from: {model_path}")
-    return model, feature_columns
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-# -------------------------------
-# Load Features
-# -------------------------------
-def load_features(features_path: Path):
-    X = pd.read_csv(features_path)
-    print(f"📊 Loaded features with shape: {X.shape}")
-    return X
+from mlops_2025.models import LogisticModel
 
-# -------------------------------
-# Predict
-# -------------------------------
-def make_predictions(model, X: pd.DataFrame):
-    y_pred = model.predict(X)
-    print(f"🪄 Generated {len(y_pred)} predictions.")
-    return y_pred
 
-# -------------------------------
-# Save Predictions
-# -------------------------------
-def save_predictions(predictions, output_path: Path, X: pd.DataFrame, id_column: str | None = None):
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    out_df = pd.DataFrame({"prediction": predictions})
-    if id_column and id_column in X.columns:
-        out_df.insert(0, id_column, X[id_column])
-    out_df.to_csv(output_path, index=False)
-    print(f"💾 Predictions saved to: {output_path}")
-
-# -------------------------------
-# Main
-# -------------------------------
-def main():
-    parser = argparse.ArgumentParser(description="Run inference using a trained model")
-    parser.add_argument("--model", type=str, required=True, help="Path to trained model (pickle)")
-    parser.add_argument("--input", type=str, required=True, help="Path to CSV with features (no labels)")
-    parser.add_argument("--output", type=str, required=True, help="Path to save predictions CSV")
-    parser.add_argument("--id-column", type=str, required=False, help="Optional id column to include in output (e.g., PassengerId)")
-    args = parser.parse_args()
-
-    model_path = Path(args.model)
-    features_path = Path(args.input)
-    output_path = Path(args.output)
-
+def main(model_path: str, features_path: str, output_path: str, 
+         model_type: str = "logistic", id_column: str | None = None):
+    """
+    Main prediction function.
+    
+    Args:
+        model_path: Path to trained model
+        features_path: Path to features CSV
+        output_path: Path to save predictions
+        model_type: Type of model
+        id_column: Optional ID column to include
+    """
+    # Check paths
+    model_path = Path(model_path)
+    features_path = Path(features_path)
+    output_path = Path(output_path)
+    
     if not model_path.exists():
-        print(f"Model file not found: {model_path}", file=sys.stderr)
-        sys.exit(2)
+        raise FileNotFoundError(f"Model file not found: {model_path}")
     if not features_path.exists():
-        print(f"Features file not found: {features_path}", file=sys.stderr)
-        sys.exit(2)
+        raise FileNotFoundError(f"Features file not found: {features_path}")
 
-    model, feature_columns = load_model(model_path)
-    X = load_features(features_path)
+    # Load model
+    print(f"Loading model from: {model_path}")
+    if model_type == "logistic":
+        model = LogisticModel()
+    else:
+        raise NotImplementedError(f"Model type '{model_type}' not yet implemented")
+    
+    model.load(model_path)
 
-    # Reindex to training feature order if available
-    if feature_columns is not None:
-        X = X.reindex(columns=feature_columns, fill_value=0)
-        print(f"🔁 Reindexed features to training order ({len(feature_columns)} cols).")
+    # Load features
+    print(f"Loading features from: {features_path}")
+    X = pd.read_csv(features_path)
+    print(f"Features shape: {X.shape}")
 
-    preds = make_predictions(model, X)
-    save_predictions(preds, output_path, X, args.id_column)
+    # Make predictions
+    print("Making predictions...")
+    predictions = model.predict(X)
+    print(f"✓ Generated {len(predictions)} predictions")
 
+    # Create output DataFrame
+    output_df = pd.DataFrame({"prediction": predictions})
+    
+    # Add ID column if specified
+    if id_column and id_column in X.columns:
+        output_df.insert(0, id_column, X[id_column])
+
+    # Save predictions
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_df.to_csv(output_path, index=False)
+    print(f"✓ Predictions saved to: {output_path}")
     print("✅ Inference complete!")
 
-if __name__ == "__main__":
-    main()
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run inference using a trained model")
+    parser.add_argument("--model", type=str, required=True, help="Path to trained model (pickle)")
+    parser.add_argument("--input", type=str, required=True, help="Path to CSV with features")
+    parser.add_argument("--output", type=str, required=True, help="Path to save predictions CSV")
+    parser.add_argument("--model-type", default="logistic", 
+                        choices=["logistic"], help="Type of model")
+    parser.add_argument("--id-column", type=str, required=False, 
+                        help="Optional ID column to include in output")
+    
+    args = parser.parse_args()
+    main(args.model, args.input, args.output, args.model_type, args.id_column)
